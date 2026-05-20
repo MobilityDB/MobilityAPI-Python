@@ -41,7 +41,7 @@ jobs:
           python -c "from resource.temporal_geom_query import distance, velocity, acceleration"
 
   pytest-dispatcher:
-    name: Dispatcher unit tests
+    name: Dispatcher / resolvers / wire unit tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -51,4 +51,4 @@ jobs:
       - name: Install pytest
         run: pip install --upgrade pip pytest
       - name: Run dispatcher tests
-        run: python -m pytest tests/test_dispatcher.py -v
+        run: python -m pytest tests/test_dispatcher.py tests/test_resolvers.py tests/test_wire.py -v
