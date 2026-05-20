@@ -1,0 +1,64 @@
+name: Vendor drift (MEOS-API)
+
+# Re-runs the `make vendor-meos-api` target against the live MEOS-API master
+# and fails if the vendored artefacts under `vendor/meos-api/` are out of date.
+#
+# Surfaces upstream changes as actionable PR diffs instead of letting them
+# silently rot. The CI failure message tells the maintainer to run
+#
+#   make vendor-meos-api
+#
+# locally and submit a refresh PR.
+#
+# Step 3 of `docs/MEOS_API_INGESTION_PLAN.md`.
+
+on:
+  pull_request:
+    paths:
+      - 'vendor/meos-api/**'
+      - 'Makefile'
+      - '.github/workflows/vendor-drift.yml'
+  push:
+    branches: [master]
+  schedule:
+    # Daily 06:00 UTC — pings the maintainer if MEOS-API master moves and the
+    # vendored copy goes stale, even without a MobilityAPI PR open.
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  vendor-drift:
+    name: Refresh & diff vendored artefacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # libclang (the Python wheel) bundles the .so but not the system C
+      # headers MEOS depends on (json-c, gsl, proj, postgres). Without them,
+      # `size_t` degrades to `int`, `json_object *` degrades to `int *`, etc.,
+      # which would show up as false drift on every CI run. Install the same
+      # dev headers a local MobilityDB build expects so libclang resolves
+      # everything correctly.
+      - name: Install dev headers for libclang sysroot (matches local parse)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            clang libclang-dev \
+            libjson-c-dev libgsl-dev libproj-dev libgeos-dev \
+            postgresql-server-dev-16
+
+      - name: Refresh vendored MEOS-API artefacts from master
+        run: make vendor-meos-api
+
+      - name: Detect drift
+        id: drift
+        run: |
+          if git diff --exit-code -- vendor/meos-api/; then
+            echo "drift=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::vendor/meos-api/ is up to date with MEOS-API master."
+          else
+            echo "drift=true" >> "$GITHUB_OUTPUT"
+            echo "::error::vendor/meos-api/ is stale. Run \`make vendor-meos-api\` locally and open a refresh PR."
+            git diff --stat -- vendor/meos-api/
+            exit 1
+          fi
