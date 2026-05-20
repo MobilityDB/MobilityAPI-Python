@@ -1,0 +1,43 @@
+{
+  "$comment": "Vendored MEOS-API artefacts. Sources, regenerate with `make vendor-meos-api`.",
+  "fetched_at": "2026-05-20",
+  "artefacts": {
+    "meos-idl.json": {
+      "source_repo": "MobilityDB/MEOS-API",
+      "source_branch": "master",
+      "source_path": "output/meos-idl.json (generated, not committed)",
+      "regenerate": "python3 run.py <path-to-MobilityDB/meos/include>",
+      "describes": "MEOS catalog: 3546 functions, 70 structs, 16 enums (simple parse over MobilityDB master headers). Enriched form (with `network`/`wire`/`api` fields) is delivered by open PR #4; once that PR's content reaches master, this artefact picks up the enriched form via the standard `make vendor-meos-api` fetch."
+    },
+    "meos-coverage.json": {
+      "source_repo": "MobilityDB/MEOS-API",
+      "source_branch": "feat/service-enrichment (PR #4) — `report.py` is not yet on master",
+      "source_path": "output/meos-coverage.json (generated, not committed)",
+      "regenerate": "python3 report.py <path-to-MobilityDB/meos/include>",
+      "describes": "Structural worklist of non-exposable functions, ranked by `byClass`.",
+      "status": "FROM_OPEN_PR4"
+    },
+    "meos-object-model-parity.json": {
+      "source_repo": "MobilityDB/MEOS-API",
+      "source_branch": "feat/object-model (PR #10) — `object_model_parity.py` is not yet on master",
+      "source_path": "output/meos-object-model-parity.json (generated, not committed)",
+      "regenerate": "python3 object_model_parity.py",
+      "describes": "Object-model dispatch / portable bare-name parity (29-pair contract verbatim).",
+      "status": "FROM_OPEN_PR10"
+    },
+    "meos-openapi.json": {
+      "source_repo": "MobilityDB/MEOS-API",
+      "source_branch": "feat/openapi (PR #5)",
+      "source_path": "output/meos-openapi.json (regenerated; not committed on the PR branch)",
+      "regenerate": "python3 generate_openapi.py",
+      "describes": "OpenAPI 3.1 projection: 1790 operations over 14 component schemas, every path a single POST with `x-meos-*` extensions. NOT YET vendored here — open PR #5's generator requires the enriched catalog from open PR #4. When both land on master, this artefact appears.",
+      "status": "PENDING_PR4_PLUS_PR5"
+    },
+    "meos-movfeat-openapi.json": {
+      "source_repo": "MobilityDB/MEOS-API",
+      "source_branch": "MISSING — natural follow-up named in PR #5's body",
+      "describes": "OGC API – Moving Features OpenAPI projection. The immediate dependency for MobilityAPI per `docs/MEOS_API_INGESTION_PLAN.md`.",
+      "status": "MISSING_UPSTREAM"
+    }
+  }
+}

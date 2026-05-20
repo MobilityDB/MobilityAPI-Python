@@ -1,0 +1,332 @@
+{
+  "status": "audited",
+  "oraclePath": "/home/esteban/src/PyMEOS/pymeos/factory.py",
+  "total": 41,
+  "aligned": 18,
+  "divergences": 41,
+  "needsCorrection": 0,
+  "knownCorrections": 41,
+  "byKind": {
+    "curated:meos:naming": 3,
+    "curated:meos:doc": 2,
+    "curated:meos:modelling": 1,
+    "curated:meos:missing-type": 1,
+    "curated:pymeos:missing-class": 4,
+    "curated:pymeos:code-smell": 1,
+    "curated:pymeos:type-axis": 1,
+    "curated:pymeos:naming": 1,
+    "concrete-missing-in-pymeos": 18,
+    "abstract-missing-in-pymeos": 3,
+    "collection-missing-in-pymeos": 6
+  },
+  "summary": {
+    "latticeNodes": 18,
+    "abstractClasses": [
+      "TAlpha",
+      "TGeo",
+      "TNumber",
+      "TPoint",
+      "TSpatial",
+      "Temporal"
+    ],
+    "leafClasses": [
+      "TBool",
+      "TCbuffer",
+      "TFloat",
+      "TGeogPoint",
+      "TGeography",
+      "TGeomPoint",
+      "TGeometry",
+      "TInt",
+      "TNpoint",
+      "TPose",
+      "TRGeometry",
+      "TText"
+    ],
+    "concreteClasses": [
+      "TBoolInst",
+      "TBoolSeq",
+      "TBoolSeqSet",
+      "TFloatInst",
+      "TFloatSeq",
+      "TFloatSeqSet",
+      "TGeogPointInst",
+      "TGeogPointSeq",
+      "TGeogPointSeqSet",
+      "TGeographyInst",
+      "TGeographySeq",
+      "TGeographySeqSet",
+      "TGeomPointInst",
+      "TGeomPointSeq",
+      "TGeomPointSeqSet",
+      "TGeometryInst",
+      "TGeometrySeq",
+      "TGeometrySeqSet",
+      "TInstant",
+      "TIntInst",
+      "TIntSeq",
+      "TIntSeqSet",
+      "TNpointInst",
+      "TRGeometryInst",
+      "TSequence",
+      "TSequenceSet",
+      "TTextInst",
+      "TTextSeq",
+      "TTextSeqSet"
+    ],
+    "classesWithMethods": 72,
+    "functionsClassified": 1060,
+    "functionsTotal": 2672,
+    "unclassified": 1612,
+    "coveragePct": 39.7,
+    "errorStatus": "scanned"
+  },
+  "worklist": [
+    {
+      "kind": "curated:meos:naming",
+      "detail": "OM-M1 meos/src/temporal/meos_catalog.c tgeo_type() vs tgeo_type_all() \u2014 The MobilityDB manual (Ch.7 Figure 7.1) is authoritative: the CLASS TGeo is the broad parent of {tgeometry,tgeography,tgeompoint,tgeogpoint} (= the C predicate tgeo_type_all). But the C predicate tgeo_type() is narrow {tgeometry,tgeography} and most tgeo_* functions reject points \u2014 so the tgeo_* API is narrower than TGeo class membership. The two C predicates with near-identical names encode different scopes (class vs API applicability).",
+      "status": "known",
+      "correction": "OM-M1"
+    },
+    {
+      "kind": "curated:meos:naming",
+      "detail": "OM-M2 meos/src/temporal/meos_catalog.c tgeometry_type() \u2014 tgeometry_type() = {tgeompoint,tgeometry} means 'geometry-based (non-geodetic)', NOT 'is the TGeometry type'. Misleads readers into thinking it selects TGeometry.",
+      "status": "known",
+      "correction": "OM-M2"
+    },
+    {
+      "kind": "curated:meos:doc",
+      "detail": "OM-M3 MEOS_TEMPTYPE_CATALOG[] {T_TRGEOMETRY, T_POSE} \u2014 TRGeometry's base type is T_POSE, not a geometry \u2014 base type != type name, surprising and undocumented at the model level.",
+      "status": "known",
+      "correction": "OM-M3"
+    },
+    {
+      "kind": "curated:meos:modelling",
+      "detail": "OM-M4 meos/src/temporal/meos_catalog.c talpha_type() \u2014 talpha_type() = {tbool,ttext}(+internal tdoubleN) is a real intermediate grouping with no user-facing class name; PyMEOS has no TAlpha. The non-number/non-spatial branch is implicit.",
+      "status": "known",
+      "correction": "OM-M4"
+    },
+    {
+      "kind": "curated:meos:naming",
+      "detail": "OM-M5 meos/include/meos_pose.h (commit 70817cd23) \u2014 tpose_to_tpoint -> tpose_to_tgeompoint and tdistance_tpose_point -> tdistance_tpose_geo renames show the prefix grammar strains on overloaded 'point'/'geo'.",
+      "status": "known",
+      "correction": "OM-M5"
+    },
+    {
+      "kind": "curated:meos:doc",
+      "detail": "OM-M6 MobilityDB manual Ch.7 Figure 7.1 (doc/images/tspatial.svg) \u2014 The published class-hierarchy figure is conceptual and PARTIAL: (a) it is spatial-only \u2014 it omits the Temporal root and the TAlpha/TNumber/TBool/TInt/TFloat/TText subtree; (b) it draws tgeompoint/tgeogpoint as direct TGeo subtypes with no TPoint node, yet the C API has tpoint_type() + a 25-function tpoint_* family that needs a class to bind to. This model is a superset that reconciles both: TPoint is inserted as an API-level abstract under TGeo.",
+      "status": "known",
+      "correction": "OM-M6"
+    },
+    {
+      "kind": "curated:meos:missing-type",
+      "detail": "OM-M7 MEOS catalog (MeosType enum) + manual Figure 7.1 \u2014 tpcpoint (temporal point-cloud point) and tpcpatch (temporal point-cloud patch) are absent from master MEOS (0 hits in meos/include, meos/src, doc/*.xml) and from Figure 7.1. They are planned spatial leaf types not yet in the drift-gated source of truth.",
+      "status": "known",
+      "correction": "OM-M7"
+    },
+    {
+      "kind": "curated:pymeos:missing-class",
+      "detail": "OM-P1 PyMEOS pymeos/factory.py _TemporalFactory._mapper \u2014 Only 6 leaf families x 3 subtypes (18 entries): TBool/TInt/TFloat/TText/TGeomPoint/TGeogPoint. Missing the temporal types MEOS now defines: TGeometry, TGeography, TCbuffer, TNpoint, TPose, TRGeometry (x3 subtypes = 18 missing classes).",
+      "status": "known",
+      "correction": "OM-P1"
+    },
+    {
+      "kind": "curated:pymeos:missing-class",
+      "detail": "OM-P2 PyMEOS pymeos/temporal, pymeos/main \u2014 No TAlpha intermediate; TBool/TText hang directly off Temporal, so the talpha_* method group has no home class.",
+      "status": "known",
+      "correction": "OM-P2"
+    },
+    {
+      "kind": "curated:pymeos:code-smell",
+      "detail": "OM-P3 PyMEOS pymeos/main/tpoint.py (TGeomPointInst/TGeogPointInst) \u2014 _make_function = lambda *args: None and _cast_function = lambda x: None are non-functional placeholders to satisfy the abstract template; the real constructor is bypassed.",
+      "status": "known",
+      "correction": "OM-P3"
+    },
+    {
+      "kind": "curated:pymeos:type-axis",
+      "detail": "OM-P4 PyMEOS pymeos/main/tpoint.py TPoint(Temporal[shp.Point,...]) \u2014 TPoint uses shapely BaseGeometry as the base-type parameter while every other family uses a scalar base \u2014 the base-type axis is inconsistent across families.",
+      "status": "known",
+      "correction": "OM-P4"
+    },
+    {
+      "kind": "curated:pymeos:naming",
+      "detail": "OM-P5 PyMEOS pymeos/main/tpoint.py bearing() \u2014 bearing() dispatches to bearing_tpoint_point/bearing_tpoint_tpoint \u2014 method placed on TPoint but the C name is not a tpoint_* prefix; ad-hoc vs the consistent tpoint_azimuth.",
+      "status": "known",
+      "correction": "OM-P5"
+    },
+    {
+      "kind": "curated:pymeos:missing-class",
+      "detail": "OM-P6 PyMEOS pymeos/factory.py _CollectionFactory._mapper \u2014 Collection factory lacks BigintSet/Span/SpanSet and NpointSet/PoseSet/CbufferSet though MEOS defines those collection types.",
+      "status": "known",
+      "correction": "OM-P6"
+    },
+    {
+      "kind": "curated:pymeos:missing-class",
+      "detail": "OM-P7 PyMEOS pymeos/main, pymeos/temporal \u2014 No abstract spatial intermediates: PyMEOS has TPoint but no TSpatial and no TGeo. Per the manual Figure 7.1 the tree is TSpatial -> TGeo -> {TGeometry, TGeography, TPoint -> {TGeomPoint, TGeogPoint}} with TCbuffer/TNpoint/TPose/TRGeometry under TSpatial; the tspatial_*/tgeo_* method groups have no home class.",
+      "status": "known",
+      "correction": "OM-P7"
+    },
+    {
+      "kind": "concrete-missing-in-pymeos",
+      "detail": "TCbufferInst (T_TCBUFFER,TINSTANT) defined by MEOS, absent from PyMEOS _TemporalFactory",
+      "status": "known",
+      "correction": "OM-P1"
+    },
+    {
+      "kind": "concrete-missing-in-pymeos",
+      "detail": "TCbufferSeq (T_TCBUFFER,TSEQUENCE) defined by MEOS, absent from PyMEOS _TemporalFactory",
+      "status": "known",
+      "correction": "OM-P1"
+    },
+    {
+      "kind": "concrete-missing-in-pymeos",
+      "detail": "TCbufferSeqSet (T_TCBUFFER,TSEQUENCESET) defined by MEOS, absent from PyMEOS _TemporalFactory",
+      "status": "known",
+      "correction": "OM-P1"
+    },
+    {
+      "kind": "concrete-missing-in-pymeos",
+      "detail": "TGeographyInst (T_TGEOGRAPHY,TINSTANT) defined by MEOS, absent from PyMEOS _TemporalFactory",
+      "status": "known",
+      "correction": "OM-P1"
+    },
+    {
+      "kind": "concrete-missing-in-pymeos",
+      "detail": "TGeographySeq (T_TGEOGRAPHY,TSEQUENCE) defined by MEOS, absent from PyMEOS _TemporalFactory",
+      "status": "known",
+      "correction": "OM-P1"
+    },
+    {
+      "kind": "concrete-missing-in-pymeos",
+      "detail": "TGeographySeqSet (T_TGEOGRAPHY,TSEQUENCESET) defined by MEOS, absent from PyMEOS _TemporalFactory",
+      "status": "known",
+      "correction": "OM-P1"
+    },
+    {
+      "kind": "concrete-missing-in-pymeos",
+      "detail": "TGeometryInst (T_TGEOMETRY,TINSTANT) defined by MEOS, absent from PyMEOS _TemporalFactory",
+      "status": "known",
+      "correction": "OM-P1"
+    },
+    {
+      "kind": "concrete-missing-in-pymeos",
+      "detail": "TGeometrySeq (T_TGEOMETRY,TSEQUENCE) defined by MEOS, absent from PyMEOS _TemporalFactory",
+      "status": "known",
+      "correction": "OM-P1"
+    },
+    {
+      "kind": "concrete-missing-in-pymeos",
+      "detail": "TGeometrySeqSet (T_TGEOMETRY,TSEQUENCESET) defined by MEOS, absent from PyMEOS _TemporalFactory",
+      "status": "known",
+      "correction": "OM-P1"
+    },
+    {
+      "kind": "concrete-missing-in-pymeos",
+      "detail": "TNpointInst (T_TNPOINT,TINSTANT) defined by MEOS, absent from PyMEOS _TemporalFactory",
+      "status": "known",
+      "correction": "OM-P1"
+    },
+    {
+      "kind": "concrete-missing-in-pymeos",
+      "detail": "TNpointSeq (T_TNPOINT,TSEQUENCE) defined by MEOS, absent from PyMEOS _TemporalFactory",
+      "status": "known",
+      "correction": "OM-P1"
+    },
+    {
+      "kind": "concrete-missing-in-pymeos",
+      "detail": "TNpointSeqSet (T_TNPOINT,TSEQUENCESET) defined by MEOS, absent from PyMEOS _TemporalFactory",
+      "status": "known",
+      "correction": "OM-P1"
+    },
+    {
+      "kind": "concrete-missing-in-pymeos",
+      "detail": "TPoseInst (T_TPOSE,TINSTANT) defined by MEOS, absent from PyMEOS _TemporalFactory",
+      "status": "known",
+      "correction": "OM-P1"
+    },
+    {
+      "kind": "concrete-missing-in-pymeos",
+      "detail": "TPoseSeq (T_TPOSE,TSEQUENCE) defined by MEOS, absent from PyMEOS _TemporalFactory",
+      "status": "known",
+      "correction": "OM-P1"
+    },
+    {
+      "kind": "concrete-missing-in-pymeos",
+      "detail": "TPoseSeqSet (T_TPOSE,TSEQUENCESET) defined by MEOS, absent from PyMEOS _TemporalFactory",
+      "status": "known",
+      "correction": "OM-P1"
+    },
+    {
+      "kind": "concrete-missing-in-pymeos",
+      "detail": "TRGeometryInst (T_TRGEOMETRY,TINSTANT) defined by MEOS, absent from PyMEOS _TemporalFactory",
+      "status": "known",
+      "correction": "OM-P1"
+    },
+    {
+      "kind": "concrete-missing-in-pymeos",
+      "detail": "TRGeometrySeq (T_TRGEOMETRY,TSEQUENCE) defined by MEOS, absent from PyMEOS _TemporalFactory",
+      "status": "known",
+      "correction": "OM-P1"
+    },
+    {
+      "kind": "concrete-missing-in-pymeos",
+      "detail": "TRGeometrySeqSet (T_TRGEOMETRY,TSEQUENCESET) defined by MEOS, absent from PyMEOS _TemporalFactory",
+      "status": "known",
+      "correction": "OM-P1"
+    },
+    {
+      "kind": "abstract-missing-in-pymeos",
+      "detail": "TAlpha (talpha_type) is a real MEOS grouping with no PyMEOS abstract class",
+      "status": "known",
+      "correction": "OM-P2"
+    },
+    {
+      "kind": "abstract-missing-in-pymeos",
+      "detail": "TGeo (tgeo_type_all) is a real MEOS grouping with no PyMEOS abstract class",
+      "status": "known",
+      "correction": "OM-P7"
+    },
+    {
+      "kind": "abstract-missing-in-pymeos",
+      "detail": "TSpatial (tspatial_type) is a real MEOS grouping with no PyMEOS abstract class",
+      "status": "known",
+      "correction": "OM-P7"
+    },
+    {
+      "kind": "collection-missing-in-pymeos",
+      "detail": "BigintSet (T_BIGINTSET) defined by MEOS, absent from PyMEOS _CollectionFactory",
+      "status": "known",
+      "correction": "OM-P6"
+    },
+    {
+      "kind": "collection-missing-in-pymeos",
+      "detail": "BigintSpan (T_BIGINTSPAN) defined by MEOS, absent from PyMEOS _CollectionFactory",
+      "status": "known",
+      "correction": "OM-P6"
+    },
+    {
+      "kind": "collection-missing-in-pymeos",
+      "detail": "BigintSpanSet (T_BIGINTSPANSET) defined by MEOS, absent from PyMEOS _CollectionFactory",
+      "status": "known",
+      "correction": "OM-P6"
+    },
+    {
+      "kind": "collection-missing-in-pymeos",
+      "detail": "CbufferSet (T_CBUFFERSET) defined by MEOS, absent from PyMEOS _CollectionFactory",
+      "status": "known",
+      "correction": "OM-P6"
+    },
+    {
+      "kind": "collection-missing-in-pymeos",
+      "detail": "NpointSet (T_NPOINTSET) defined by MEOS, absent from PyMEOS _CollectionFactory",
+      "status": "known",
+      "correction": "OM-P6"
+    },
+    {
+      "kind": "collection-missing-in-pymeos",
+      "detail": "PoseSet (T_POSESET) defined by MEOS, absent from PyMEOS _CollectionFactory",
+      "status": "known",
+      "correction": "OM-P6"
+    }
+  ]
+}
