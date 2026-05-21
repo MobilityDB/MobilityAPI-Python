@@ -23,8 +23,21 @@ from .wire import (
 )
 
 __all__ = [
+    "create_app",
     "Dispatcher", "FunctionSignature",
     "stub_resolver", "pymeos_resolver", "default_resolver",
     "WireCodec", "stub_codec", "pymeos_codec",
     "ENCODING_MFJSON", "ENCODING_TEXT", "ENCODING_WKB", "ENCODING_HEXWKB",
 ]
+
+
+# Lazy-load `create_app` (PEP 562) so importing `mobilityapi` does NOT pull
+# in FastAPI/Starlette/Pydantic.  Callers that need the HTTP routes import
+# `from mobilityapi import create_app` and pay the FastAPI dep then; tests
+# that only exercise Dispatcher/Resolvers/WireCodec do not need it on the
+# import path.
+def __getattr__(name):  # noqa: D401 - module-level descriptor
+    if name == "create_app":
+        from .app import create_app as _create_app
+        return _create_app
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

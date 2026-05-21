@@ -41,14 +41,17 @@ jobs:
           python -c "from resource.temporal_geom_query import distance, velocity, acceleration"
 
   pytest-dispatcher:
-    name: Dispatcher / resolvers / wire unit tests
+    name: Dispatcher / resolvers / wire / app unit tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install pytest
-        run: pip install --upgrade pip pytest
-      - name: Run dispatcher tests
-        run: python -m pytest tests/test_dispatcher.py tests/test_resolvers.py tests/test_wire.py -v
+      - name: Install dependencies
+        # `fastapi` + `httpx` are required by test_app.py; the other test
+        # modules run with pytest alone since the package init lazy-loads
+        # FastAPI via PEP 562.
+        run: pip install --upgrade pip pytest fastapi 'httpx>=0.24'
+      - name: Run framework + app tests
+        run: python -m pytest tests/test_dispatcher.py tests/test_resolvers.py tests/test_wire.py tests/test_app.py -v
