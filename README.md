@@ -74,6 +74,8 @@ If you need the AIS dataset, download `aisdk_2024-08-07.zip` from the [Danish Ma
 
 Send HTTP requests to the API using any HTTP client. As an example, the `ais.sql` script will create `ships` and `ship2` tables containing ships data — change the CSV path in the script to point at your downloaded dataset.
 
+For a guided walk-through of the OGC API – Moving Features endpoints against the Danish AIS dataset, open the [`tutorial.ipynb`](tutorial.ipynb) notebook (start the server with `./run.sh` first).
+
 ## Where MobilityAPI fits
 
 MobilityAPI is the HTTP / OGC layer of the MEOS ecosystem. The other layers are:
