@@ -1,14 +1,18 @@
 name: Vendor drift (MEOS-API)
 
 # Re-runs the `make vendor-meos-api` target against the live MEOS-API master
-# and fails if the vendored artefacts under `vendor/meos-api/` are out of date.
+# and reports when the vendored artefacts under `vendor/meos-api/` are out of
+# date.
 #
 # Surfaces upstream changes as actionable PR diffs instead of letting them
-# silently rot. The CI failure message tells the maintainer to run
+# silently rot. On a pull request touching the vendored copy the drift fails
+# the run, and the message tells the author to run
 #
 #   make vendor-meos-api
 #
-# locally and submit a refresh PR.
+# locally and include the result. Every other run opens that refresh pull
+# request itself, since MEOS-API master moves most days and there is no author
+# to address.
 #
 # Step 3 of `docs/MEOS_API_INGESTION_PLAN.md`.
 
@@ -26,12 +30,37 @@ on:
     - cron: '0 6 * * *'
   workflow_dispatch:
 
+# The scheduled run commits the refreshed artefacts to a branch and opens a
+# pull request for them.
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   vendor-drift:
     name: Refresh & diff vendored artefacts
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # `git diff` against the base needs the history the two share.
+          fetch-depth: 0
+
+      # A pull request that changes the vendored copy, or the target that
+      # writes it, owns keeping it current. One that changes only this
+      # workflow does not, and failing it for a staleness it did not cause
+      # would block the very change that stops the staleness failing.
+      - name: Note whether this pull request owns the vendored copy
+        id: owns
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --no-tags origin "${{ github.base_ref }}"
+          if git diff --name-only FETCH_HEAD...HEAD -- vendor/meos-api Makefile | grep -q .; then
+            echo "owns=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "owns=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::This pull request changes neither vendor/meos-api nor the Makefile, so a drift is reported rather than failed."
+          fi
 
       # libclang (the Python wheel) bundles the .so but not the system C
       # headers MEOS depends on (json-c, gsl, proj, postgres). Without them,
@@ -50,6 +79,15 @@ jobs:
       - name: Refresh vendored MEOS-API artefacts from master
         run: make vendor-meos-api
 
+      # A pull request that changes the vendored copy or the target that writes
+      # it must not leave it stale, and its author is there to act, so there the
+      # drift is an error.
+      #
+      # Nobody is there to act on a schedule or on a push already made, and
+      # MEOS-API master moves most days, so failing whenever it had moved would
+      # fail most days and report a difference no one could address from a run
+      # log. Those runs open the refresh instead, and the pull request they
+      # open carries the diff.
       - name: Detect drift
         id: drift
         run: |
@@ -58,7 +96,35 @@ jobs:
             echo "::notice::vendor/meos-api/ is up to date with MEOS-API master."
           else
             echo "drift=true" >> "$GITHUB_OUTPUT"
-            echo "::error::vendor/meos-api/ is stale. Run \`make vendor-meos-api\` locally and open a refresh PR."
             git diff --stat -- vendor/meos-api/
-            exit 1
+            if [ "${{ steps.owns.outputs.owns }}" = "true" ]; then
+              echo "::error::vendor/meos-api/ is stale. Run \`make vendor-meos-api\` locally and include the result."
+              exit 1
+            fi
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              echo "::notice::vendor/meos-api/ is stale, which this pull request does not cause and does not have to fix."
+            else
+              echo "::notice::vendor/meos-api/ is stale; opening a refresh pull request."
+            fi
           fi
+
+      # `add-paths` stages only what it lists, so it names every path
+      # `make vendor-meos-api` writes; anything omitted would be regenerated
+      # and then silently discarded. The action reuses its branch, so a later
+      # run updates this pull request rather than opening another one.
+      - name: Open a refresh pull request
+        if: github.event_name != 'pull_request' && steps.drift.outputs.drift == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          add-paths: vendor/meos-api
+          branch: tooling/refresh-meos-api-vendor
+          delete-branch: true
+          commit-message: "Refresh the vendored MEOS-API artefacts"
+          title: "Refresh the vendored MEOS-API artefacts"
+          body: |
+            `make vendor-meos-api` regenerates `vendor/meos-api/` from MEOS-API
+            master and the MobilityDB headers it parses, and the result differs
+            from the committed copy.
+
+            Opened by the scheduled `Vendor drift (MEOS-API)` run, which reruns
+            daily and updates this pull request while the difference stands.
