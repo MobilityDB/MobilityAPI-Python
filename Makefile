@@ -7,6 +7,12 @@ MEOS_API_PR4    ?= refs/pull/4/head       # MEOS-API PR #4 (enrichment)
 MEOS_API_PR13   ?= refs/pull/13/head      # MEOS-API PR #13 (OGC MovFeat projection)
 MOBILITYDB_REPO ?= https://github.com/MobilityDB/MobilityDB
 MOBILITYDB_REF  ?= master
+# The object-model audit reads PyMEOS as its oracle. Without it the audit
+# degrades to `oracle-unavailable`, a DIFFERENT artefact from the one a
+# checkout with PyMEOS beside it produces, so the drift gate compares two
+# shapes and never agrees.
+PYMEOS_REPO     ?= https://github.com/MobilityDB/PyMEOS
+PYMEOS_REF      ?= master
 VENDOR_DIR      := vendor/meos-api
 
 .PHONY: vendor-meos-api vendor-meos-api-from-prs vendor-meos-api-movfeat
@@ -18,22 +24,28 @@ VENDOR_DIR      := vendor/meos-api
 #   1. clone MEOS-API at the requested ref,
 #   2. clone MobilityDB at the requested ref so MEOS-API's parser can read its
 #      headers (`meos/include/`),
-#   3. install libclang,
-#   4. run `python3 run.py <MobilityDB-headers-path>` to produce output/*.json,
-#   5. copy the JSON artefacts into $(VENDOR_DIR).
+#   3. clone PyMEOS, the oracle the object-model audit reads,
+#   4. install libclang,
+#   5. run `python3 run.py <MobilityDB-headers-path>` to produce output/*.json,
+#   6. copy the JSON artefacts into $(VENDOR_DIR).
 vendor-meos-api:
 	@echo "[vendor] regenerating meos-api artefacts from"
 	@echo "          MEOS-API:   $(MEOS_API_REPO)@$(MEOS_API_REF)"
 	@echo "          MobilityDB: $(MOBILITYDB_REPO)@$(MOBILITYDB_REF) (headers source)"
+	@echo "          PyMEOS:     $(PYMEOS_REPO)@$(PYMEOS_REF) (object-model oracle)"
 	@mkdir -p $(VENDOR_DIR)
 	@tmpdir=$$(mktemp -d) && \
 	  git clone --depth 1 --branch $(MEOS_API_REF)   $(MEOS_API_REPO)   $$tmpdir/meos-api && \
 	  git clone --depth 1 --branch $(MOBILITYDB_REF) $(MOBILITYDB_REPO) $$tmpdir/mobilitydb && \
+	  git clone --depth 1 --branch $(PYMEOS_REF)     $(PYMEOS_REPO)     $$tmpdir/PyMEOS && \
 	  cd $$tmpdir/meos-api && \
 	  pip install --quiet --user -r requirements.txt && \
 	  python3 run.py $$tmpdir/mobilitydb/meos/include && \
-	  if [ -f report.py ]; then python3 report.py $$tmpdir/mobilitydb/meos/include || true; fi && \
-	  if [ -f object_model_parity.py ]; then python3 object_model_parity.py || true; fi && \
+	  if [ -f report.py ]; then python3 report.py; fi && \
+	  if [ -f object_model_parity.py ]; then \
+	    python3 object_model_parity.py output/meos-idl.json \
+	      output/meos-object-model-parity.json \
+	      $$tmpdir/PyMEOS/pymeos/factory.py; fi && \
 	  cp -v output/meos-idl.json                 $(CURDIR)/$(VENDOR_DIR)/ && \
 	  ( [ -f output/meos-coverage.json ]            && cp -v output/meos-coverage.json            $(CURDIR)/$(VENDOR_DIR)/ || true ) && \
 	  ( [ -f output/meos-object-model-parity.json ] && cp -v output/meos-object-model-parity.json $(CURDIR)/$(VENDOR_DIR)/ || true ) && \
