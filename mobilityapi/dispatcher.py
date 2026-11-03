@@ -4,11 +4,12 @@ Reads the vendored MEOS-API catalog (``vendor/meos-api/meos-idl.json``,
 produced by the MEOS-API ``run.py`` against MobilityDB master headers) and
 exposes a single ``dispatch(function_name, params) -> Any`` entry point.
 
-When a MEOS-API enriched catalog (with ``network``/``wire``/``api`` fields,
-authored by ``parser/enrich.py`` on MEOS-API PR #4) is the source, the
-dispatcher uses the richer per-parameter decode/encode metadata.  When only
-the bare catalog is available, it falls back to the function signature
-itself.
+Every catalog function carries ``name``, ``category``, ``params``,
+``returnType`` (``{"c", "canonical"}``) and the enrichment fields
+``network`` and ``wire``; the dispatcher reads each of them by that exact
+key and raises ``KeyError`` when one is absent, so a renamed catalog key
+fails at load rather than reading as empty.  ``doc`` is the one optional
+key.
 
 The dispatcher does NOT invoke PyMEOS directly inside its core logic —
 PyMEOS is injected as a *resolver* callable so the same dispatcher can be
@@ -46,7 +47,6 @@ class FunctionSignature:
     category: str
     params: list[dict] = field(default_factory=list)
     return_type: str = ""
-    # Network / wire enrichment (optional; only present on enriched catalog).
     exposable: bool = True
     decode_per_param: dict[str, str] = field(default_factory=dict)
     encode_return: str | None = None
@@ -54,30 +54,37 @@ class FunctionSignature:
 
     @classmethod
     def from_catalog_entry(cls, entry: dict) -> "FunctionSignature":
-        network = entry.get("network", {})
-        wire = entry.get("wire", {})
+        """Normalise one ``functions[]`` entry of the catalog.
+
+        Mirrors #_load, which reads ``functions`` by its exact key: every
+        required catalog key is read by its exact spelling and an absent
+        one raises ``KeyError``.  ``return_type`` is the C spelling
+        ``returnType.c``.
+        """
+        network = entry["network"]
+        wire = entry["wire"]
 
         decode_per_param: dict[str, str] = {}
-        if wire.get("params"):
-            for p in wire["params"]:
-                if p.get("kind") == "serialized" and p.get("decode"):
-                    decode_per_param[p["name"]] = p["decode"]
-                elif p.get("kind") == "array" and p.get("element", {}).get("decode"):
-                    decode_per_param[p["name"]] = p["element"]["decode"]
+        for p in wire["params"]:
+            if p["kind"] == "serialized":
+                decode_per_param[p["name"]] = p["decode"]
+            elif p["kind"] == "array" and p["element"]["kind"] == "serialized":
+                decode_per_param[p["name"]] = p["element"]["decode"]
 
-        encode_return: str | None = None
-        if wire.get("result", {}).get("kind") == "serialized":
-            encode_return = wire["result"].get("encode")
+        result = wire["result"]
+        encode_return: str | None = (
+            result["encode"] if result["kind"] == "serialized" else None
+        )
 
         return cls(
             name=entry["name"],
-            category=entry.get("category", "uncategorised"),
-            params=entry.get("params", []),
-            return_type=entry.get("return_type", ""),
-            exposable=bool(network.get("exposable", True)),
+            category=entry["category"],
+            params=entry["params"],
+            return_type=entry["returnType"]["c"],
+            exposable=bool(network["exposable"]),
             decode_per_param=decode_per_param,
             encode_return=encode_return,
-            description=entry.get("doc", "") or entry.get("description", ""),
+            description=entry.get("doc") or "",
         )
 
 
@@ -117,7 +124,7 @@ class Dispatcher:
         with path.open() as f:
             catalog = json.load(f)
 
-        for entry in catalog.get("functions", []):
+        for entry in catalog["functions"]:
             sig = FunctionSignature.from_catalog_entry(entry)
             if sig.exposable:
                 self._signatures[sig.name] = sig

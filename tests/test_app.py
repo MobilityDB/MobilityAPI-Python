@@ -28,33 +28,43 @@ _CATALOG = {
         {
             "name": "double_it",
             "category": "demo",
-            "params": [{"name": "x", "type": "int"}],
-            "return_type": "int",
+            "params": [{"name": "x", "cType": "int", "canonical": "int"}],
+            "returnType": {"c": "int", "canonical": "int"},
+            "network": {"exposable": True},
+            "wire": {
+                "params": [{"name": "x", "kind": "json", "json": "integer"}],
+                "result": {"kind": "json", "json": "integer"},
+            },
         },
         {
             "name": "trip_length",
             "category": "demo",
-            "params": [{"name": "trip", "type": "Temporal *"}],
-            "return_type": "double",
+            "params": [{"name": "trip", "cType": "const Temporal *",
+                        "canonical": "const Temporal *"}],
+            "returnType": {"c": "double", "canonical": "double"},
+            "network": {"exposable": True},
             "wire": {
                 "params": [
                     {"name": "trip", "kind": "serialized", "decode": "mfjson"}
                 ],
-                "result": {"kind": "scalar"},
+                "result": {"kind": "json", "json": "number"},
             },
         },
         {
             "name": "shift_trip",
             "category": "demo",
             "params": [
-                {"name": "trip", "type": "Temporal *"},
-                {"name": "delta", "type": "Interval *"},
+                {"name": "trip", "cType": "const Temporal *",
+                 "canonical": "const Temporal *"},
+                {"name": "delta", "cType": "const Interval *",
+                 "canonical": "const Interval *"},
             ],
-            "return_type": "Temporal *",
+            "returnType": {"c": "Temporal *", "canonical": "Temporal *"},
+            "network": {"exposable": True},
             "wire": {
                 "params": [
                     {"name": "trip", "kind": "serialized", "decode": "mfjson"},
-                    {"name": "delta", "kind": "scalar"},
+                    {"name": "delta", "kind": "json", "json": "string"},
                 ],
                 "result": {"kind": "serialized", "encode": "mfjson"},
             },

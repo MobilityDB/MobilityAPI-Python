@@ -21,6 +21,31 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 VENDOR_CATALOG = REPO_ROOT / "vendor" / "meos-api" / "meos-idl.json"
 
 
+def _fn(name, category, params, c_return, *, wire=None, exposable=True,
+        doc=None):
+    """One catalog entry built from ``(name, cType)`` parameter pairs.
+
+    Builds the ``functions[]`` shape #from_catalog_entry reads, the shape
+    the ``_fn`` of tests/test_movfeat.py builds; ``wire`` defaults to a
+    JSON value per parameter and a JSON result.
+    """
+    entry = {
+        "name": name,
+        "category": category,
+        "params": [{"name": n, "cType": t, "canonical": t} for n, t in params],
+        "returnType": {"c": c_return, "canonical": c_return},
+        "network": {"exposable": exposable},
+        "wire": wire or {
+            "params": [{"name": n, "kind": "json", "json": "string"}
+                       for n, _ in params],
+            "result": {"kind": "json", "json": "string"},
+        },
+    }
+    if doc is not None:
+        entry["doc"] = doc
+    return entry
+
+
 # --- catalog load ------------------------------------------------------------
 
 def test_default_path_loads_vendored_catalog():
@@ -36,7 +61,7 @@ def test_explicit_path_overrides_default(tmp_path: Path):
     custom = tmp_path / "fake-idl.json"
     custom.write_text(json.dumps({
         "functions": [
-            {"name": "my_fn", "category": "demo", "params": [], "return_type": "int"}
+            _fn("my_fn", "demo", [], "int")
         ]
     }))
     d = Dispatcher(catalog_path=custom)
@@ -53,13 +78,8 @@ def test_missing_catalog_path_raises_filenotfound(tmp_path: Path):
 # --- signature shape ---------------------------------------------------------
 
 def test_signature_round_trips_basic_fields():
-    entry = {
-        "name": "temporal_as_mfjson",
-        "category": "io",
-        "params": [{"name": "temp", "cType": "const Temporal *"}],
-        "return_type": "char *",
-        "doc": "Convert to MF-JSON.",
-    }
+    entry = _fn("temporal_as_mfjson", "io", [("temp", "const Temporal *")],
+                "char *", doc="Convert to MF-JSON.")
     sig = FunctionSignature.from_catalog_entry(entry)
     assert sig.name == "temporal_as_mfjson"
     assert sig.category == "io"
@@ -69,26 +89,71 @@ def test_signature_round_trips_basic_fields():
 
 
 def test_signature_reads_enriched_wire_metadata_when_present():
-    entry = {
-        "name": "tpoint_speed",
-        "category": "tpoint",
-        "params": [{"name": "tpoint", "cType": "const Temporal *"}],
-        "return_type": "Temporal *",
-        "network": {"exposable": True},
-        "wire": {
+    entry = _fn(
+        "tpoint_speed", "tpoint", [("tpoint", "const Temporal *")],
+        "Temporal *",
+        wire={
             "params": [{"name": "tpoint", "kind": "serialized",
                         "cType": "Temporal", "decode": "from_hex_wkb"}],
             "result": {"kind": "serialized", "cType": "Temporal",
                        "encode": "as_hex_wkb"},
         },
-    }
+    )
     sig = FunctionSignature.from_catalog_entry(entry)
     assert sig.decode_per_param == {"tpoint": "from_hex_wkb"}
     assert sig.encode_return == "as_hex_wkb"
 
 
-def test_signature_without_wire_falls_back_to_defaults():
-    entry = {"name": "fn", "category": "demo", "params": [], "return_type": "int"}
+# Each test below mirrors #test_signature_round_trips_basic_fields: build one
+# catalog entry with _fn, normalise it, assert one property of the result.
+
+def test_signature_reads_return_type_from_returnType_c():
+    entry = _fn("fn", "demo", [], "Temporal *")
+    entry["returnType"]["canonical"] = "struct Temporal *"
+    sig = FunctionSignature.from_catalog_entry(entry)
+    assert sig.return_type == "Temporal *"
+
+
+@pytest.mark.parametrize("key", ["name", "category", "params", "returnType",
+                                 "network", "wire"])
+def test_signature_missing_required_key_raises(key):
+    entry = _fn("fn", "demo", [], "int")
+    del entry[key]
+    with pytest.raises(KeyError, match=key):
+        FunctionSignature.from_catalog_entry(entry)
+
+
+def test_signature_rejects_the_return_type_spelling():
+    entry = _fn("fn", "demo", [], "int")
+    entry["return_type"] = entry.pop("returnType")["c"]
+    with pytest.raises(KeyError, match="returnType"):
+        FunctionSignature.from_catalog_entry(entry)
+
+
+def test_signature_without_doc_has_empty_description():
+    sig = FunctionSignature.from_catalog_entry(_fn("fn", "demo", [], "int"))
+    assert sig.description == ""
+
+
+def test_signature_reads_array_element_decode():
+    entry = _fn(
+        "fn", "demo", [("arr", "Temporal **"), ("count", "int")], "int",
+        wire={
+            "params": [
+                {"name": "arr", "kind": "array", "count_param": "count",
+                 "element": {"kind": "serialized", "cType": "Temporal",
+                             "decode": "from_hex_wkb"}},
+                {"name": "count", "kind": "json", "json": "integer"},
+            ],
+            "result": {"kind": "json", "json": "integer"},
+        },
+    )
+    sig = FunctionSignature.from_catalog_entry(entry)
+    assert sig.decode_per_param == {"arr": "from_hex_wkb"}
+
+
+def test_signature_with_json_wire_has_no_codec():
+    entry = _fn("fn", "demo", [], "int")
     sig = FunctionSignature.from_catalog_entry(entry)
     assert sig.decode_per_param == {}
     assert sig.encode_return is None
@@ -98,10 +163,8 @@ def test_non_exposable_functions_are_excluded(tmp_path: Path):
     custom = tmp_path / "idl.json"
     custom.write_text(json.dumps({
         "functions": [
-            {"name": "exposed_fn", "category": "x", "params": [], "return_type": "int",
-             "network": {"exposable": True}},
-            {"name": "internal_fn", "category": "x", "params": [], "return_type": "int",
-             "network": {"exposable": False}},
+            _fn("exposed_fn", "x", [], "int", exposable=True),
+            _fn("internal_fn", "x", [], "int", exposable=False),
         ]
     }))
     d = Dispatcher(catalog_path=custom)
@@ -124,9 +187,8 @@ def test_dispatch_invokes_resolver_with_params(tmp_path: Path):
     custom = tmp_path / "idl.json"
     custom.write_text(json.dumps({
         "functions": [
-            {"name": "tpoint_speed", "category": "tpoint",
-             "params": [{"name": "tpoint", "cType": "const Temporal *"}],
-             "return_type": "Temporal *"}
+            _fn("tpoint_speed", "tpoint", [("tpoint", "const Temporal *")],
+                "Temporal *")
         ]
     }))
     seen: dict = {}
@@ -152,9 +214,7 @@ def test_dispatch_missing_param_raises_typeerror(tmp_path: Path):
     custom = tmp_path / "idl.json"
     custom.write_text(json.dumps({
         "functions": [
-            {"name": "fn", "category": "x",
-             "params": [{"name": "a"}, {"name": "b"}],
-             "return_type": "int"}
+            _fn("fn", "x", [("a", "int"), ("b", "int")], "int")
         ]
     }))
     d = Dispatcher(catalog_path=custom,
@@ -169,7 +229,7 @@ def test_default_resolver_raises_notimplemented(tmp_path: Path):
     custom = tmp_path / "idl.json"
     custom.write_text(json.dumps({
         "functions": [
-            {"name": "fn", "category": "x", "params": [], "return_type": "int"}
+            _fn("fn", "x", [], "int")
         ]
     }))
     d = Dispatcher(catalog_path=custom)  # no resolver supplied
