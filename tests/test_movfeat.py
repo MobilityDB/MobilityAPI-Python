@@ -17,13 +17,34 @@ from fastapi.testclient import TestClient
 from mobilityapi import create_app, stub_codec
 from mobilityapi.dispatcher import Dispatcher
 
+
+def _fn(name: str, category: str, c_return: str) -> dict:
+    """One catalog entry taking a single temporal ``t``.
+
+    Builds the ``functions[]`` shape #from_catalog_entry reads, the same
+    shape the ``_CATALOG`` of tests/test_app.py spells out entry by entry.
+    """
+    return {
+        "name": name,
+        "category": category,
+        "params": [{"name": "t", "cType": "const Temporal *",
+                    "canonical": "const Temporal *"}],
+        "returnType": {"c": c_return, "canonical": c_return},
+        "network": {"exposable": True},
+        "wire": {
+            "params": [{"name": "t", "kind": "json", "json": "string"}],
+            "result": {"kind": "json", "json": "string"},
+        },
+    }
+
+
 # Catalog: the three MEOS functions the OGC read routes dispatch to, each a
 # single-temporal-argument function named `t`.
 _CATALOG = {
     "functions": [
-        {"name": "temporal_as_mfjson", "category": "io", "params": [{"name": "t", "type": "Temporal *"}], "return_type": "text"},
-        {"name": "tpoint_speed", "category": "analysis", "params": [{"name": "t", "type": "Temporal *"}], "return_type": "Temporal *"},
-        {"name": "tpoint_cumulative_length", "category": "analysis", "params": [{"name": "t", "type": "Temporal *"}], "return_type": "Temporal *"},
+        _fn("temporal_as_mfjson", "io", "char *"),
+        _fn("tpoint_speed", "analysis", "Temporal *"),
+        _fn("tpoint_cumulative_length", "analysis", "Temporal *"),
     ]
 }
 
