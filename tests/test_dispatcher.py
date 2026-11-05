@@ -1,8 +1,8 @@
 """Unit tests for mobilityapi.dispatcher.Dispatcher.
 
-These tests run against the vendored MEOS-API catalog (a real
-``vendor/meos-api/meos-idl.json``) but with a stub resolver, so PyMEOS is
-NOT required to run them. The dispatcher's contract — catalog load,
+These tests run against the generated table ``mobilityapi/catalog_gen.py``
+and catalogs built in the catalog's shape, with a stub resolver, so PyMEOS
+is NOT required to run them. The dispatcher's contract — catalog load,
 function lookup, parameter validation, resolver invocation — is verifiable
 independently of any actual MEOS runtime.
 """
@@ -15,10 +15,6 @@ from pathlib import Path
 import pytest
 
 from mobilityapi.dispatcher import Dispatcher, FunctionSignature
-
-
-REPO_ROOT = Path(__file__).resolve().parent.parent
-VENDOR_CATALOG = REPO_ROOT / "vendor" / "meos-api" / "meos-idl.json"
 
 
 def _fn(name, category, params, c_return, *, wire=None, exposable=True,
@@ -48,9 +44,12 @@ def _fn(name, category, params, c_return, *, wire=None, exposable=True,
 
 # --- catalog load ------------------------------------------------------------
 
-def test_default_path_loads_vendored_catalog():
-    """The default Dispatcher() reads vendor/meos-api/meos-idl.json."""
+def test_default_loads_the_generated_table():
+    """The default Dispatcher() reads mobilityapi/catalog_gen.py, every
+    entry of which the catalog states as exposable."""
+    from mobilityapi.catalog_gen import FUNCTIONS
     d = Dispatcher()
+    assert len(d) == len(FUNCTIONS)
     assert len(d) > 0
     # Sanity: a known MEOS function should be present.
     assert d.has("temporal_as_mfjson")
@@ -239,21 +238,22 @@ def test_default_resolver_raises_notimplemented(tmp_path: Path):
 
 # --- integration sanity ------------------------------------------------------
 
-@pytest.mark.skipif(not VENDOR_CATALOG.exists(),
-                    reason="vendored catalog not present in this checkout")
 def test_real_catalog_has_the_5_movfeat_dispatch_candidates():
-    """Sanity-check that the catalog contains the 5 MEOS functions named in
-    docs/MEOS_API_INGESTION_PLAN.md as the candidates for the REPLACE step."""
+    """The generated table holds the 5 MEOS functions the Moving Features
+    routes dispatch to. A feature's trajectory is a tgeompoint, so the item
+    writer is the typed tgeompoint_from_mfjson, which is public, and not
+    temporal_from_mfjson, which takes a MeosType and which the catalog
+    states as internal."""
     d = Dispatcher()
     candidates = [
         "temporal_as_mfjson",        # /collections/{c}/items/{f}/tgsequence
-        "temporal_from_mfjson",      # POST /collections/{c}/items
+        "tgeompoint_from_mfjson",    # POST /collections/{c}/items
         "tpoint_speed",              # /tgsequence/velocity
         "tpoint_cumulative_length",  # /tgsequence/distance
         "temporal_derivative",       # /tgsequence/acceleration
     ]
     missing = [c for c in candidates if not d.has(c)]
     assert not missing, (
-        f"vendored catalog is missing MEOS functions the dispatcher plan "
+        f"the generated table is missing MEOS functions the Moving Features routes "
         f"needs: {missing}"
     )

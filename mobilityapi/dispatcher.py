@@ -1,8 +1,10 @@
 """Catalog-driven dispatcher for MEOS functions.
 
-Reads the vendored MEOS-API catalog (``vendor/meos-api/meos-idl.json``,
-produced by the MEOS-API ``run.py`` against MobilityDB master headers) and
-exposes a single ``dispatch(function_name, params) -> Any`` entry point.
+Reads the MEOS functions of ``mobilityapi/catalog_gen.py``, the table
+``tools/codegen.py`` generates from the MEOS-API catalog, and exposes a
+single ``dispatch(function_name, params) -> Any`` entry point.  A
+``meos-idl.json`` passed as ``catalog_path`` is read instead, with the same
+reader.
 
 Every catalog function carries ``name``, ``category``, ``params``,
 ``returnType`` (``{"c", "canonical"}``) and the enrichment fields
@@ -17,26 +19,15 @@ unit-tested with stubs.  In production, the resolver is
 ``getattr(pymeos.functions, name)`` (PyMEOS's flat function module mirrors
 the MEOS C API one-for-one).
 
-Foundation only: this PR ships the loader, the signature model, and the
-dispatch entry point with stub-resolver unit tests.  The follow-up PRs swap
-each of the 5 hand-written ``resource/*`` modules listed in
-``docs/MEOS_API_INGESTION_PLAN.md`` (§\"Replace candidates\") to call
-``Dispatcher.dispatch`` instead of psycopg2 SQL.
 """
 
 from __future__ import annotations
 
 import json
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Iterable
-
-
-# Default vendored catalog path, resolved relative to the repository root.
-_DEFAULT_CATALOG = (
-    Path(__file__).resolve().parent.parent
-    / "vendor" / "meos-api" / "meos-idl.json"
-)
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -53,7 +44,7 @@ class FunctionSignature:
     description: str = ""
 
     @classmethod
-    def from_catalog_entry(cls, entry: dict) -> "FunctionSignature":
+    def from_catalog_entry(cls, entry: dict) -> FunctionSignature:
         """Normalise one ``functions[]`` entry of the catalog.
 
         Mirrors #_load, which reads ``functions`` by its exact key: every
@@ -98,8 +89,9 @@ class Dispatcher:
     ) -> None:
         """Construct a dispatcher.
 
-        :param catalog_path: Path to ``meos-idl.json``; defaults to the
-            vendored copy at ``vendor/meos-api/meos-idl.json``.
+        :param catalog_path: Path to a ``meos-idl.json`` to read; by default
+            the dispatcher reads the generated table
+            ``mobilityapi/catalog_gen.py``.
         :param resolver: Callable mapping a MEOS function name to the
             Python callable that implements it.  In production this is
             ``lambda n: getattr(pymeos.functions, n)``.  In unit tests it
@@ -107,24 +99,33 @@ class Dispatcher:
             ``NotImplementedError`` — the caller must supply a real
             resolver before ``dispatch`` is called.
         """
-        path = Path(catalog_path) if catalog_path else _DEFAULT_CATALOG
-        self._catalog_path = path
         self._signatures: dict[str, FunctionSignature] = {}
-        self._load(path)
+        self._load(self._entries(catalog_path))
         self._resolver = resolver or self._stub_resolver
 
     # -- catalog ----------------------------------------------------------------
 
-    def _load(self, path: Path) -> None:
-        if not path.exists():
-            raise FileNotFoundError(
-                f"MEOS-API catalog not found at {path}. Run "
-                f"`make vendor-meos-api` to (re-)populate vendor/meos-api/."
-            )
-        with path.open() as f:
-            catalog = json.load(f)
+    @staticmethod
+    def _entries(catalog_path: Path | str | None) -> Iterable[dict]:
+        """The catalog functions to read: the generated table, or the
+        ``functions`` of the ``meos-idl.json`` at ``catalog_path``.
 
-        for entry in catalog["functions"]:
+        This module has no other source of catalog entries; both sources
+        yield entries in the catalog's own shape, which #from_catalog_entry
+        reads, so the table and a catalog file pass through the one reader.
+        """
+        if catalog_path is None:
+            from mobilityapi.catalog_gen import FUNCTIONS
+            return FUNCTIONS
+        path = Path(catalog_path)
+        if not path.exists():
+            raise FileNotFoundError(f"MEOS-API catalog not found at {path}")
+        with path.open() as f:
+            return json.load(f)["functions"]
+
+    def _load(self, entries: Iterable[dict]) -> None:
+        """Keep each exposable entry, read through #from_catalog_entry."""
+        for entry in entries:
             sig = FunctionSignature.from_catalog_entry(entry)
             if sig.exposable:
                 self._signatures[sig.name] = sig
@@ -135,7 +136,7 @@ class Dispatcher:
         except KeyError:
             raise KeyError(
                 f"Unknown MEOS function `{name}` — either it does not exist "
-                f"in the vendored catalog or it is not exposable."
+                f"in the MEOS-API catalog or it is not exposable."
             )
 
     def signatures(self) -> Iterable[FunctionSignature]:

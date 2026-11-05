@@ -1,9 +1,9 @@
 """Catalog introspection endpoints.
 
-The MobilityAPI ingestion pipeline (steps 1–3) lands the MEOS catalog as
-``vendor/meos-api/meos-idl.json``. Step 4's :class:`Dispatcher` loads
-that catalog and filters it to the *exposable* subset (functions whose
-catalog entry has ``network.exposable=true`` or is missing).
+The :class:`Dispatcher` holds the functions the MEOS-API catalog states as
+exposable (``network.exposable``), read from the table
+``mobilityapi/catalog_gen.py`` that ``tools/codegen.py`` generates from the
+catalog.
 
 This router exposes that subset over HTTP so callers can discover what
 the deployed instance can dispatch. Two routes:

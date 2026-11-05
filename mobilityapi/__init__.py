@@ -1,8 +1,8 @@
 """MobilityAPI catalog-driven dispatcher package.
 
-The MobilityAPI ingestion plan (docs/MEOS_API_INGESTION_PLAN.md) calls for
-replacing the hand-written MEOS-dispatching endpoint modules with thin
-dispatchers driven by the vendored MEOS-API catalog. This package provides
+The MEOS-dispatching endpoints are thin dispatchers driven by the MEOS-API
+catalog, through the table mobilityapi/catalog_gen.py that tools/codegen.py
+generates from it. This package provides
 the three foundation pieces the migrating endpoints share:
 
 - ``Dispatcher``     — catalog-driven function lookup + invocation.

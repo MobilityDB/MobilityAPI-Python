@@ -71,8 +71,8 @@ def pymeos_resolver() -> Callable[[str], Callable[..., Any]]:
                 f"pymeos.functions has no attribute `{name}`. "
                 f"Either the catalog references a function not exposed "
                 f"by the installed PyMEOS version, or PyMEOS is out of "
-                f"sync with the vendored catalog (run `make vendor-meos-api` "
-                f"and check requirements.txt's pymeos version)."
+                f"sync with the generated table mobilityapi/catalog_gen.py "
+                f"(check requirements.txt's pymeos version)."
             ) from e
     return _resolve
 

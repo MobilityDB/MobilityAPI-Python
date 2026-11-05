@@ -1,7 +1,7 @@
 """Wire-layer codec — decode HTTP request bodies to PyMEOS objects, encode
 PyMEOS results back to HTTP response payloads.
 
-The catalog (``vendor/meos-api/meos-idl.json``, after the enrichment pass)
+The MEOS-API catalog
 labels each parameter and the result with one of the supported encodings:
 
 - ``mfjson`` — Moving Features JSON (the OGC API – Moving Features

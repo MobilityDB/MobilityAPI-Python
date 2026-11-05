@@ -20,6 +20,43 @@ jobs:
         run: ruff check . || echo "::warning::ruff found issues — please fix before merging"
         continue-on-error: true
 
+  generated-table:
+    name: The generated table is what the catalog declares
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # The MEOS-API catalog, derived here from MobilityDB master by the action
+      # every binding in the ecosystem uses. It is never committed: it is a
+      # derived artifact of one MobilityDB commit, and a tracked copy is drift
+      # waiting to happen.
+      - name: Derive the MEOS-API catalog
+        id: provision
+        uses: MobilityDB/MEOS-API/.github/actions/provision-meos@master
+        with:
+          mobilitydb-ref: master
+
+      # catalog_gen.py is the catalog's exposable functions projected into
+      # Python, so it is generated rather than kept by hand, and this is what
+      # makes the copy in the tree the current one. A function MEOS gains,
+      # loses or changes arrives here as a difference to regenerate, which is
+      # the whole reason the table is generated: a hand-kept copy goes stale
+      # in silence instead.
+      - name: The generated table is what the catalog declares
+        run: |
+          python3 tools/codegen.py -catalog "${{ steps.provision.outputs.catalog-path }}" \
+            -o mobilityapi/catalog_gen.py
+          if ! git diff --quiet -- mobilityapi/catalog_gen.py; then
+            echo "::error::the generated table is not what the catalog declares. Regenerate it: python3 tools/codegen.py -catalog <meos-idl.json>"
+            git diff --stat -- mobilityapi/catalog_gen.py
+            git diff -- mobilityapi/catalog_gen.py | head -n 100
+            exit 1
+          fi
+          echo "the committed table is what the catalog of MobilityDB master declares"
+
   python-import:
     name: Import smoke test
     runs-on: ubuntu-latest
