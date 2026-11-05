@@ -2,7 +2,7 @@
 
 The "pure MEOS round-trip" resources — the temporal-geometry sequence and its
 derived velocity / distance queries, and a stored temporal property — are
-served by dispatching the matching MEOS function from the vendored catalog
+served by dispatching the matching MEOS function from the MEOS-API catalog
 through the ``Dispatcher`` + ``WireCodec``, then shaping the MF-JSON result as
 the OGC envelope. The collection / feature lifecycle, persistence and the
 GeoJSON envelope have no MEOS equivalent and stay hand-written.
@@ -62,7 +62,7 @@ def _dispatch_unary(dispatcher, codec, fn: str, value_mfjson: Any) -> Any:
     """Decode an MF-JSON temporal value, dispatch a single-temporal-argument
     MEOS function, and re-encode the result as MF-JSON."""
     if not dispatcher.has(fn):
-        raise HTTPException(501, f"MEOS function `{fn}` is not in the vendored catalog")
+        raise HTTPException(501, f"MEOS function `{fn}` is not in the MEOS-API catalog")
     sig = dispatcher.signature(fn)
     if not sig.params:
         raise HTTPException(500, f"MEOS function `{fn}` has no parameters to dispatch")
