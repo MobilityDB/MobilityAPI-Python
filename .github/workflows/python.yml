@@ -10,8 +10,12 @@ jobs:
     name: Lint (ruff)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      # git names the branch a repository it initialises starts on, so the checkout
+      # prints no hint about an unset default.
+      - name: Name git's default branch
+        run: git config --global init.defaultBranch main
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Install ruff
@@ -24,8 +28,12 @@ jobs:
     name: The generated table is what the catalog declares
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      # git names the branch a repository it initialises starts on, so the checkout
+      # prints no hint about an unset default.
+      - name: Name git's default branch
+        run: git config --global init.defaultBranch main
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -61,8 +69,12 @@ jobs:
     name: Import smoke test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      # git names the branch a repository it initialises starts on, so the checkout
+      # prints no hint about an unset default.
+      - name: Name git's default branch
+        run: git config --global init.defaultBranch main
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Install dependencies
@@ -81,8 +93,12 @@ jobs:
     name: Unit tests (PyMEOS-free)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      # git names the branch a repository it initialises starts on, so the checkout
+      # prints no hint about an unset default.
+      - name: Name git's default branch
+        run: git config --global init.defaultBranch main
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Install test dependencies
