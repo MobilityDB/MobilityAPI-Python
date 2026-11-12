@@ -58,8 +58,8 @@ def build_collections_list_response(collections, base_url):
 def fetch_collection_by_id(cursor, collection_id):
     cursor.execute("""
         SELECT c.id, c.title, c.description, c.update_frequency, c.item_type,
-        extent(tg.trajectory) AS extent,
-        extent(tg.trajectory)::tstzspan AS extent_period,
+        asText(extent(tg.trajectory)) AS extent,
+        asText(extent(tg.trajectory)::tstzspan) AS extent_period,
         ( SELECT mf.crs FROM moving_features mf WHERE mf.collection_id =  %s LIMIT 1
             ) AS crs,
 
@@ -83,8 +83,8 @@ def fetch_collection_by_id(cursor, collection_id):
 def fetch_all_collections(cursor):
     cursor.execute("""
         SELECT c.id, c.title, c.description, c.update_frequency, c.item_type,
-            extent(tg.trajectory) AS extent,
-            extent(tg.trajectory)::tstzspan AS extent_period,
+            asText(extent(tg.trajectory)) AS extent,
+            asText(extent(tg.trajectory)::tstzspan) AS extent_period,
             ( SELECT mf.crs FROM moving_features mf WHERE mf.collection_id = c.id LIMIT 1
             ) AS crs,
 

@@ -24,8 +24,8 @@ def get_movement_single_moving_feature(self, collection_id, feature_id, connecti
                 mf.id,
                 mf.type,
                 mf.properties,
-                mf.bbox::text,
-                mf.time::text,
+                asText(mf.bbox),
+                asText(mf.time),
                 mf.crs,
                 mf.trs,
                 json_agg(
