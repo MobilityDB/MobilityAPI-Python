@@ -79,8 +79,8 @@ def get_collection_items(self, collection_id, connection, cursor):
                 mf.type,
                 ST_AsGeoJSON(tg.geometry) as geometry,
                 mf.properties,
-                mf.bbox::text,
-                mf.time::text,
+                asText(mf.bbox),
+                asText(mf.time),
                 mf.crs,
                 mf.trs,
                 tg.id as geom_id,
@@ -97,15 +97,18 @@ def get_collection_items(self, collection_id, connection, cursor):
 
         # + spatial filter using MobilityDB if bbox param
         if x1 is not None:
-            query += f" AND tg.trajectory && setsrid(stbox 'STBOX X(({x1},{y1}),({x2},{y2}))',srid(tg.trajectory))"
+            query += " AND tg.trajectory && setsrid(stboxFromText(%s), srid(tg.trajectory))"
+            params.append(f"STBOX X(({x1},{y1}),({x2},{y2}))")
         
         # + temporal filter using MobilityDB if datetime pram
         # check mobility functions **> not urgent clean 
         if dt1 and dt2: 
-            query += f" AND tg.trajectory && tstzspan '[{dt1}, {dt2}]'"
+            query += " AND tg.trajectory && tstzspanFromText(%s)"
+            params.append(f"[{dt1}, {dt2}]")
         elif dt1:     # instant 
             # intesects same time instant (atPeriod didn't workd , re check slightly urgent)
-            query += f" AND tg.trajectory && tstzspan '[{dt1}, {dt1}]'"
+            query += " AND tg.trajectory && tstzspanFromText(%s)"
+            params.append(f"[{dt1}, {dt1}]")
 
         query += f" ORDER BY mf.created_at LIMIT %s"
         params.append(limit)
@@ -159,7 +162,7 @@ def get_collection_items(self, collection_id, connection, cursor):
                             interval = f'[{dt1}, {dt2}]'
                             sub_query = """
                             WITH time_window AS (
-                                    SELECT tstzspan %s AS tw
+                                    SELECT tstzspanFromText(%s) AS tw
                                 )
                             SELECT
                                     asMFJSON(atTime(tg.trajectory, tw)) as tempotime,
